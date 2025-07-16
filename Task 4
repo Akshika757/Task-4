@@ -1,34 +1,30 @@
 #include "mbed.h"
 #include "arm_book_lib.h"
 
-//=====[Hardware Connections]==================================================
-
 // Inputs
 AnalogIn temperatureSensor(A1);      // LM35 temperature sensor
 AnalogIn potentiometer(A0);          // Potentiometer
-DigitalIn gasSensor(D2);             // MQ-2 gas sensor (digital)
+DigitalIn gasSensor(D2);             // MQ-2 gas sensor 
 
 // Serial communication
 UnbufferedSerial uartUsb(USBTX, USBRX, 115200);
 
-// Event-driven architecture
+
 Ticker statusTicker;
 EventQueue queue;
 Thread eventThread;
 
-//=====[Functions]=============================================================
-
-// Read LM35 temperature in °C, scaled as int × 100
+// Read LM35 temperature in °C, 
 int readTemperatureCInt()
 {
     float voltage = temperatureSensor.read() * 3.3f;
-    return static_cast<int>((voltage / 0.01f) * 100);  // e.g. 27.34°C → 2734
+    return static_cast<int>((voltage / 0.01f) * 100);  
 }
 
-// Read potentiometer voltage, scaled as int × 100
+// Read potentiometer voltage, 
 int readPotVoltageInt()
 {
-    return static_cast<int>((potentiometer.read() * 3.3f) * 100);  // e.g. 1.65V → 165
+    return static_cast<int>((potentiometer.read() * 3.3f) * 100);  
 }
 
 // Prepare and send serial output
@@ -55,8 +51,6 @@ void postUpdateStatus()
 {
     queue.call(updateStatus);
 }
-
-//=====[Main]==================================================================
 
 int main()
 {
