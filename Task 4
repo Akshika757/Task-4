@@ -1,0 +1,71 @@
+#include "mbed.h"
+#include "arm_book_lib.h"
+
+//=====[Hardware Connections]==================================================
+
+// Inputs
+AnalogIn temperatureSensor(A1);      // LM35 temperature sensor
+AnalogIn potentiometer(A0);          // Potentiometer
+DigitalIn gasSensor(D2);             // MQ-2 gas sensor (digital)
+
+// Serial communication
+UnbufferedSerial uartUsb(USBTX, USBRX, 115200);
+
+// Event-driven architecture
+Ticker statusTicker;
+EventQueue queue;
+Thread eventThread;
+
+//=====[Functions]=============================================================
+
+// Read LM35 temperature in °C, scaled as int × 100
+int readTemperatureCInt()
+{
+    float voltage = temperatureSensor.read() * 3.3f;
+    return static_cast<int>((voltage / 0.01f) * 100);  // e.g. 27.34°C → 2734
+}
+
+// Read potentiometer voltage, scaled as int × 100
+int readPotVoltageInt()
+{
+    return static_cast<int>((potentiometer.read() * 3.3f) * 100);  // e.g. 1.65V → 165
+}
+
+// Prepare and send serial output
+void updateStatus()
+{
+    int temp = readTemperatureCInt();  
+    int pot = readPotVoltageInt();      
+    bool gas = !gasSensor.read();      
+
+    char msg[100];
+    int len = snprintf(msg, sizeof(msg),
+        "Temp: %d.%02d C | Pot: %d.%02d V | Gas: %s\r\n",
+        temp / 100, temp % 100,
+        pot / 100, pot % 100,
+        gas ? "YES" : "NO");
+
+    if (len > 0 && len < sizeof(msg)) {
+        uartUsb.write(msg, len);
+    }
+}
+
+// Safe EventQueue trigger from Ticker
+void postUpdateStatus()
+{
+    queue.call(updateStatus);
+}
+
+//=====[Main]==================================================================
+
+int main()
+{
+    gasSensor.mode(PullDown);
+
+    eventThread.start(callback(&queue, &EventQueue::dispatch_forever));
+    statusTicker.attach(&postUpdateStatus, 1s);
+
+    while (true) {
+        ThisThread::sleep_for(100ms);
+    }
+}
